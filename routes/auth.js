@@ -2,6 +2,9 @@ const router = require("express").Router();
 const { check, validationResult } = require("express-validator");
 const { users } = require("../db");
 const bcrypt = require("bcrypt");
+const JWT = require("jsonwebtoken");
+const { route } = require("express/lib/router");
+
 // in this line: => router.post("/singup",[], (req, res) => {}  // => [] is middleware
 router.post(
   "/singup",
@@ -24,11 +27,11 @@ router.post(
         error: errors.array(),
       });
     }
-    let user = users.find((user) => {
+    const user = users.find((user) => {
       return user.email === email;
     });
     if (user) {
-      res.status(400).json({
+      return res.status(400).json({
         error: [
           {
             msg: "This user already exist",
@@ -44,11 +47,63 @@ router.post(
       password: hashedPassword,
     });
 
-    console.log(hashedPassword);
+    const token = await JWT.sign(
+      {
+        email,
+      },
+      "allsaflsafa55656565",
+      {
+        expiresIn: 3600000,
+      }
+    );
     // validate if user doesn't already exist
-    res.send("Validation Pass");
+    res.json({
+      token,
+    });
   }
 );
+
+router.post("/login", async (req, res) => {
+  const { password, email } = req.body;
+
+  let user = users.find((user) => {
+    return user.email === email;
+  });
+
+  if (!user) {
+    return res.status(400).json({
+      error: [
+        {
+          msg: "invalid credentials",
+        },
+      ],
+    });
+  }
+
+  let isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return res.status(400).json({
+      error: [
+        {
+          msg: "invalid credentials",
+        },
+      ],
+    });
+  }
+
+  const token = await JWT.sign(
+    {
+      email,
+    },
+    "allsaflsafa55656565",
+    {
+      expiresIn: 3600000,
+    }
+  );
+  res.json({
+    token,
+  });
+});
 
 router.get("/all", (req, res) => {
   res.json(users);
